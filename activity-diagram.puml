@@ -1,0 +1,72 @@
+
+@startuml
+title US-26 - Avboka i tid
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #F4F7FB
+  BorderColor #34495E
+  FontColor #253444
+  DiamondBackgroundColor #FFF0CD
+  DiamondBorderColor #B7791F
+  ArrowColor #526579
+}
+
+|Kund|
+start
+:Öppna mina bokningar;
+:Välj en kommande bokning;
+:Begär avbokning;
+
+|System|
+:Hämta bokning med BookingId;
+
+if (Finns bokningen?) then (Nej)
+  :Visa "Bokningen hittades inte";
+  stop
+else (Ja)
+  :Kontrollera att bokningen
+  tillhör kunden;
+endif
+
+if (Tillhör bokningen kunden?) then (Nej)
+  :Neka avbokning;
+  :Visa "Åtkomst nekad";
+  stop
+else (Ja)
+  :Kontrollera bokningens status;
+endif
+
+if (Är bokningen redan avbokad?) then (Ja)
+  :Visa "Bokningen är redan avbokad";
+  stop
+else (Nej)
+  :Hämta första hyresdagen;
+endif
+
+:Hämta dagens datum;
+
+if (Är dagens datum före första hyresdagen?) then (Nej)
+  :Neka avbokning;
+  :Behåll bokningens status oförändrad;
+  :Visa "Avbokningsfristen har passerat";
+  stop
+else (Ja)
+  :Ändra bokningens status till Cancelled;
+endif
+
+:Spara den uppdaterade bokningen;
+
+if (Lyckades sparningen?) then (Nej)
+  :Visa "Avbokningen kunde inte sparas";
+  :Behåll tidigare bokningsstatus;
+  stop
+else (Ja)
+  :Bekräfta att bokningen är avbokad;
+endif
+
+|Kund|
+:Ta emot avbokningsbekräftelse;
+
+stop
+@enduml
