@@ -1,0 +1,86 @@
+@startuml
+title US-26 - Avboka i tid (Sekvensdiagram)
+
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #526579
+  LifeLineBorderColor #34495E
+  LifeLineBackgroundColor #F4F7FB
+  ParticipantBorderColor #34495E
+  ParticipantBackgroundColor #E8F0FA
+  ParticipantFontColor #253444
+  ActorBorderColor #34495E
+  ActorBackgroundColor #F4F7FB
+  GroupBorderColor #526579
+  GroupBackgroundColor #F4F7FB
+}
+
+actor Kund
+boundary "Avbokningsgränssnitt" as UI
+control "BookingService" as Service
+entity "Booking" as Booking
+database "IBookingRepository" as Repository
+
+Kund -> UI : Begär avbokning(bookingId)
+activate UI
+
+UI -> Service : CancelBooking(bookingId, customerId)
+activate Service
+
+Service -> Repository : GetById(bookingId)
+activate Repository
+Repository --> Service : Booking / null
+deactivate Repository
+
+alt Bokningen finns inte
+  Service --> UI : NotFound
+else Bokningen tillhör annan kund
+  Service -> Booking : Kontrollera CustomerId
+  Booking --> Service : Tillhör inte kunden
+  Service --> UI : AccessDenied
+else Bokningen tillhör kunden
+  Service -> Booking : GetStatus()
+  activate Booking
+  Booking --> Service : Status
+  deactivate Booking
+
+  alt Status = Cancelled
+    Service --> UI : AlreadyCancelled
+  else Status != Cancelled
+    Service -> Booking : GetStartDate()
+    activate Booking
+    Booking --> Service : StartDate
+    deactivate Booking
+
+    Service -> Service : Kontrollera dagens datum
+
+    alt Dagens datum >= StartDate
+      Service --> UI : CancellationDeadlinePassed
+    else Dagens datum < StartDate
+      Service -> Booking : Cancel()
+      activate Booking
+      Booking --> Service : Status = Cancelled
+      deactivate Booking
+
+      Service -> Repository : Update(Booking)
+      activate Repository
+
+      alt Sparning lyckas
+        Repository --> Service : Success
+        Service --> UI : CancellationSuccessful
+      else Sparning misslyckas
+        Repository --> Service : Error
+        Service --> UI : CancellationFailed
+      end
+
+      deactivate Repository
+    end
+  end
+end
+
+deactivate Service
+
+UI --> Kund : Visa resultat
+deactivate UI
+
+@enduml
